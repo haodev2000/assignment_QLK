@@ -186,4 +186,36 @@ public class WarehouseDAO {
 	        }
 	    }
 
+	    public List<Warehouse> getAllWarehousesIsNotPerson() {
+	        String sql = "SELECT " +
+	                     "    w.id AS warehouse_id, " +
+	                     "    w.name AS warehouse_name, " +
+	                     "    w.address AS warehouse_address " +
+	                     "FROM " +
+	                     "    WAREHOUSE w " +
+	                     "LEFT JOIN " +
+	                     "    PERSON p " +
+	                     "ON " +
+	                     "    w.id = p.warehouse_id " +
+	                     "WHERE " +
+	                     "    p.id IS NULL " +
+	                     "ORDER BY w.id";
+
+	        List<Warehouse> warehouses = new ArrayList<>();
+
+	        try (Connection connection = DatabaseConnection.getConnection();
+	             PreparedStatement pstmt = connection.prepareStatement(sql);
+	             ResultSet rs = pstmt.executeQuery()) {
+
+	            while (rs.next()) {
+	                Warehouse warehouse = new Warehouse(rs.getInt("warehouse_id"), rs.getString("warehouse_name"), rs.getString("warehouse_address"));
+	                warehouses.add(warehouse);
+	            }
+
+	        } catch (SQLException e) {
+	            e.printStackTrace();
+	        }
+	        return warehouses;
+	    }
+
 }

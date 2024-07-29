@@ -20,7 +20,6 @@ import vn.edu.likelion.QLK.model.Attribute;
 import vn.edu.likelion.QLK.model.Category;
 import vn.edu.likelion.QLK.model.Person;
 import vn.edu.likelion.QLK.model.Product;
-import vn.edu.likelion.QLK.model.Role;
 import vn.edu.likelion.QLK.model.Warehouse;
 
 @SpringBootApplication
@@ -43,6 +42,7 @@ public class QlkApplication {
     private static final CategoryDAO categoryDAO = new CategoryDAO(connection);
     private static final ProductDAO productDAO = new ProductDAO(connection);
     private static final AttributeDAO attributeDAO = new AttributeDAO(connection);
+    
     
     
     public static void main(String[] args) throws SQLException {
@@ -141,9 +141,10 @@ public class QlkApplication {
             System.out.println("4. View product");
             System.out.println("5. View product in warehouse");
             System.out.println("6. Add warehouse to category");
-            System.out.println("7. Get all Warehouse and category with warehouse");
-            System.out.println("8. Backup warehouse and category with warehouse when delete warehouse");
-            System.out.println("9. Exit");
+            System.out.println("7. Add Attribute for Producut");
+            System.out.println("8. Get all Warehouse and category with warehouse");
+            System.out.println("9. Backup warehouse and category with warehouse when delete warehouse");
+            System.out.println("10. Exit");
             System.out.print("Enter your choice: ");
             int choice = scanner.nextInt();
             scanner.nextLine(); // Consume the newline
@@ -168,12 +169,15 @@ public class QlkApplication {
                     addWarehouseToCategory();
                     break;
                 case 7:
-                    getAllWarehouseAndCategory();
+                	addAttributeForProduct();
                     break;
                 case 8:
-                    transferCategoriesAndDeleteWarehouse();
+                    getAllWarehouseAndCategory();
                     break;
                 case 9:
+                    transferCategoriesAndDeleteWarehouse();
+                    break;
+                case 10:
                     exit = true;
                     System.out.println("Exiting to login/register menu.");
                     break;
@@ -263,6 +267,12 @@ public class QlkApplication {
         newPerson.setPassword(PasswordUtil.encodeBase64(scanner.nextLine())); // Encode password       
         newPerson.setRole(1);
 
+        
+        List<Warehouse> listWareHouse = warehouseDAO.getAllWarehousesIsNotPerson();
+        for(Warehouse w : listWareHouse) {
+        	System.out.println(w.toString());
+        }
+        
         System.out.print("Enter warehouse ID (0 for none): ");
         int warehouseId = scanner.nextInt();
         scanner.nextLine(); // Consume newline
@@ -280,7 +290,7 @@ public class QlkApplication {
         System.out.println("New user added successfully.");
     }
 
-    private static void deleteUser() throws SQLException {
+    private static void deletePerson() throws SQLException {
         System.out.print("Enter the ID of the user to delete: ");
         int userId = scanner.nextInt();
         scanner.nextLine(); // Consume newline
@@ -434,24 +444,44 @@ public class QlkApplication {
 
     private static void viewWarehouses() {
         List<Warehouse> warehouses = warehouseDAO.getAllWarehouses();
+
+        if (warehouses.isEmpty()) {
+            System.out.println("No warehouses found.");
+            return;
+        }
+
         System.out.println("------Warehouse List------");
+        System.out.printf("%-5s %-20s %-30s%n", "ID", "Name", "Address");
+        System.out.println("-------------------------------------------------------------");
+
         for (Warehouse warehouse : warehouses) {
-            System.out.println("ID: " + warehouse.getId() + ", Name: " + warehouse.getName() + ", Address: " + warehouse.getAddress());
+            System.out.printf("%-5d %-20s %-30s%n", warehouse.getId(), warehouse.getName(), warehouse.getAddress());
         }
     }
 
+
     private static void viewProducts() {
         List<Product> products = productDAO.getAllProducts();
+
+        if (products.isEmpty()) {
+            System.out.println("No products found.");
+            return;
+        }
+
         System.out.println("------Product List------");
+        System.out.printf("%-5s %-20s %-10s %-10s %-20s%n", "ID", "Name", "Quantity", "Price", "Category");
+        System.out.println("---------------------------------------------------------------");
+
         for (Product product : products) {
-            System.out.println("ID: " + product.getId() + ", Name: " + product.getName() + 
-            		", Quantity: " + product.getQuantity() + ", Price: " + product.getPrice() 
-            		+", Category: " + product.getCategory().getName());
-//            if (product.getCategory() != null) {
-//                System.out.println("Category: " + product.getCategory().getName());
-//            }
+            System.out.printf("%-5d %-20s %-10d %-10.2f %-20s%n",
+                    product.getId(),
+                    product.getName(),
+                    product.getQuantity(),
+                    product.getPrice(),
+                    product.getCategory().getName());
         }
     }
+
 
     private static void viewProductsByCategoryAndWarehouse() throws SQLException {
         System.out.print("Enter category ID: ");
@@ -507,31 +537,18 @@ public class QlkApplication {
         }
     }
 
-    private static void addWarehouseToCategory() {
+    private static void addWarehouseToCategory() throws SQLException {
+
         System.out.print("Enter category ID: ");
         int categoryId = scanner.nextInt();
         scanner.nextLine(); // Consume the newline
-
+   
         System.out.print("Enter warehouse ID: ");
         int warehouseId = scanner.nextInt();
         scanner.nextLine(); // Consume the newline
-
-        Connection connection = null;
-        try {
-            connection = DatabaseConnection.getConnection(); // Ensure you have this method to get the connection
-            CategoryDAO categoryDAO = new CategoryDAO(connection);
-            categoryDAO.addWarehouseToCategory(categoryId, warehouseId);
-        } catch (SQLException e) {
-            e.printStackTrace();
-        } finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
+ 
+        categoryDAO.addWarehouseToCategory(categoryId, warehouseId);
+     
     }
     
     private static void getAllWarehouseAndCategory() throws SQLException {
@@ -581,5 +598,27 @@ public class QlkApplication {
         }
     }
 
+    private static void addAttributeForProduct() throws SQLException {
+    	  System.out.println("------Add New Attribute------");
+    	  Attribute attribute = new Attribute();
+
+          System.out.print("Enter description name: ");
+          attribute.setDescription(scanner.nextLine());
+          
+          List<Product> listProducts = productDAO.getAllProducts();
+          for(Product p : listProducts) {
+        	  System.out.println("ID:" + p.getId() + ", Name:" +  p.getName());
+          } 
+          
+          System.out.print("Enter product id: ");
+          int pro_id = scanner.nextInt();
+         
+          Product product = productDAO.getProductById(pro_id);
+          attribute.setProduct(product);
+        		  
+        		  
+          attributeDAO.createAttribute(attribute);
+          System.out.println("New warehouse added successfully.");
+    }
 
 }

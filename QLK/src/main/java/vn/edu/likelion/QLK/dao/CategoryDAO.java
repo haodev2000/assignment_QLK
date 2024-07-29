@@ -78,27 +78,53 @@ public class CategoryDAO {
 	    }
 
     // Read All
-    public List<Category> getAllCategories() {
-        List<Category> categories = new ArrayList<>();
-        String sql = "SELECT * FROM Category";
+	 public List<Category> getAllCategories() {
+		    List<Category> categories = new ArrayList<>();
+		    String sql = "SELECT * FROM Category";
+		    
+		    // Obtain the connection outside of try-with-resources to handle it explicitly
+		    Connection connection = null;
+		    
+		    try {
+		        connection = DatabaseConnection.getConnection();
+		        // Ensure the connection is open before proceeding
+		        if (connection == null || connection.isClosed()) {
+		            throw new SQLException("Failed to establish a database connection.");
+		        }
 
-        try (Connection connection = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = connection.prepareStatement(sql);
-             ResultSet rs = pstmt.executeQuery()) {
+		        try (PreparedStatement pstmt = connection.prepareStatement(sql);
+		             ResultSet rs = pstmt.executeQuery()) {
+		             
+		            WarehouseDAO warehouseDAO = new WarehouseDAO(connection);
 
-            while (rs.next()) {
-                Category category = new Category();
-                category.setId(rs.getInt("id"));
-                category.setName(rs.getString("name"));
-                category.setWarehouse(warehouseDAO.getWarehouseById(rs.getInt("warehouse_id")));
-                categories.add(category);
-            }
+		            while (rs.next()) {
+		                Category category = new Category();
+		                category.setId(rs.getInt("id"));
+		                category.setName(rs.getString("name"));
+		                category.setWarehouse(warehouseDAO.getWarehouseById(rs.getInt("warehouse_id")));
+		                categories.add(category);
+		            }
+		        }
+		    } catch (SQLException e) {
+		        e.printStackTrace();
+		    } finally {
+		        // Ensure the connection is closed after the operation is completed
+		        if (connection != null) {
+		            try {
+		                connection.close();
+		            } catch (SQLException e) {
+		                e.printStackTrace();
+		            }
+		        }
+		    }
+		    return categories;
+		}
 
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return categories;
-    }
+
+
+
+
+
 
     // Update
     public void updateCategory(Category category) {
@@ -137,16 +163,37 @@ public class CategoryDAO {
     public void addWarehouseToCategory(int categoryId, int warehouseId) throws SQLException {
         String sql = "UPDATE Category SET warehouse_id = ? WHERE id = ?";
 
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, warehouseId);
-            pstmt.setInt(2, categoryId);
-            pstmt.executeUpdate();
-            System.out.println("Warehouse ID: " + warehouseId + " added to Category ID: " + categoryId);
+        Connection connection = null;
+        try {
+            // Obtain the connection
+            connection = DatabaseConnection.getConnection();
+
+            // Ensure the connection is open before proceeding
+            if (connection == null || connection.isClosed()) {
+                throw new SQLException("Failed to establish a database connection.");
+            }
+
+            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+                pstmt.setInt(1, warehouseId);
+                pstmt.setInt(2, categoryId);
+                pstmt.executeUpdate();
+                System.out.println("Warehouse ID: " + warehouseId + " added to Category ID: " + categoryId);
+            }
         } catch (SQLException e) {
             e.printStackTrace();
             throw e;
+        } finally {
+            // Ensure the connection is closed after the operation is completed
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
+
 
     public List<Category> getCategoriesByWarehouseId(int warehouseId) {
         List<Category> categories = new ArrayList<>();

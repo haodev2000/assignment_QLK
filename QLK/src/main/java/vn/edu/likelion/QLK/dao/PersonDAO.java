@@ -110,35 +110,33 @@ public class PersonDAO {
     
     // Get by ID
     public Person getPersonById(int id) throws SQLException {
-    	Person person = null;
+        Person person = null;
         String sql = "SELECT * FROM Person WHERE id = ?";
 
-        WarehouseDAO warehouseDAO = new WarehouseDAO(connection);
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql)) {
 
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    person = new Person();
+                    person.setId(rs.getInt("id"));
+                    person.setName(rs.getString("name"));
+                    person.setAge(rs.getInt("age"));
+                    person.setUsername(rs.getString("username"));
+                    person.setPassword(rs.getString("password"));
+                    person.setRole(rs.getInt("role_id"));
 
-               pstmt.setInt(1, id);
-               try (ResultSet rs = pstmt.executeQuery()) {
-                   if (rs.next()) {
-                	   
-                       person = new Person();
-                      
-                       person.setId(rs.getInt("id"));
-                       person.setName(rs.getString("name"));
-                       person.setAge(rs.getInt("age"));
-                       person.setUsername(rs.getString("username"));
-                       person.setPassword(rs.getString("password"));
-                       person.setRole(rs.getInt("role_id"));
-                       person.setWarehouse(warehouseDAO.getWarehouseById(rs.getInt("warehouse_id")));
-                      
-                   }
-               }
-
-           } catch (SQLException e) {
-               e.printStackTrace();
-           }
+                    WarehouseDAO warehouseDAO = new WarehouseDAO(connection);
+                    person.setWarehouse(warehouseDAO.getWarehouseById(rs.getInt("warehouse_id")));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
         return person;
-     }
+    }
+
  
     // Read All
     public List<Person> getAllPersons() {
@@ -196,37 +194,58 @@ public class PersonDAO {
 
     // Delete
     public void deletePerson(int id) {
-    	 String getWarehouseIdSql = "SELECT warehouse_id FROM Person WHERE id = ?";
-         String deletePersonSql = "DELETE FROM Person WHERE id = ?";
-         String deleteWarehouseSql = "DELETE FROM Warehouse WHERE id = ?";
+        String getWarehouseIdSql = "SELECT warehouse_id FROM Person WHERE id = ?";
+        String deletePersonSql = "DELETE FROM Person WHERE id = ?";
+        String deleteWarehouseSql = "DELETE FROM Warehouse WHERE id = ?";
 
-         try (PreparedStatement getWarehouseIdStmt = connection.prepareStatement(getWarehouseIdSql);
-              PreparedStatement deletePersonStmt = connection.prepareStatement(deletePersonSql);
-              PreparedStatement deleteWarehouseStmt = connection.prepareStatement(deleteWarehouseSql)) {
+        Connection connection = null;
+        try {
+            // Obtain the connection
+            connection = DatabaseConnection.getConnection();
 
-             // Retrieve the associated Warehouse ID
-             getWarehouseIdStmt.setInt(1, id);
-             ResultSet rs = getWarehouseIdStmt.executeQuery();
-             Integer warehouseId = null;
+            // Ensure the connection is open before proceeding
+            if (connection == null || connection.isClosed()) {
+                throw new SQLException("Failed to establish a database connection.");
+            }
 
-             if (rs.next()) {
-                 warehouseId = rs.getInt("warehouse_id");
-             }
+            try (PreparedStatement getWarehouseIdStmt = connection.prepareStatement(getWarehouseIdSql);
+                 PreparedStatement deletePersonStmt = connection.prepareStatement(deletePersonSql);
+                 PreparedStatement deleteWarehouseStmt = connection.prepareStatement(deleteWarehouseSql)) {
 
-             // Delete the Person record
-             deletePersonStmt.setInt(1, id);
-             deletePersonStmt.executeUpdate();
+                // Retrieve the associated Warehouse ID
+                getWarehouseIdStmt.setInt(1, id);
+                ResultSet rs = getWarehouseIdStmt.executeQuery();
+                Integer warehouseId = null;
 
-             // If a Warehouse ID was found, delete the associated Warehouse
-             if (warehouseId != null) {
-                 deleteWarehouseStmt.setInt(1, warehouseId);
-                 deleteWarehouseStmt.executeUpdate();
-             }
+                if (rs.next()) {
+                    warehouseId = rs.getInt("warehouse_id");
+                }
 
-         } catch (SQLException e) {
-             e.printStackTrace();
-         }
-     }
+                // Delete the Person record
+                deletePersonStmt.setInt(1, id);
+                deletePersonStmt.executeUpdate();
+
+                // If a Warehouse ID was found, delete the associated Warehouse
+                if (warehouseId != null) {
+                    deleteWarehouseStmt.setInt(1, warehouseId);
+                    deleteWarehouseStmt.executeUpdate();
+                }
+
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            // Ensure the connection is closed after the operation is completed
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
     
     
     private void deleteWarehouseByPersonId(int personId, Connection conn) throws SQLException {
